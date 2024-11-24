@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// TODO: this should be config as well
 var startMaps = map[byte]uint64{
 	'a': uint64(1000000000),
 	'f': uint64(2000000000),
@@ -38,6 +39,12 @@ var getShardStart = func(startKey byte) uint64 {
 	}
 
 	return startMaps['v']
+}
+
+type result struct {
+	err      error
+	keyRange string
+	prefixes []byte
 }
 
 func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize uint64) (errr error) {
@@ -87,8 +94,6 @@ func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize 
 
 	repo := models.NewURLRepo(database)
 
-	// TODO: this should be config as well
-
 	// Create one worker for each range in
 	// seeder.GetShards
 
@@ -109,28 +114,57 @@ func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize 
 	// create one database for each and then
 	// load database in sqlite for each key range.
 
-	errChans := make(chan error, len(keyRanges))
+	resultsChan := make(chan result, len(keyRanges))
 
 	for _, keyrange := range keyRanges {
 		log.Info().Msgf("generating keys for shard %s", keyrange)
 
 		go func(keyRange string) {
+			res := result{keyRange: keyRange}
+
 			start, end, ok := models.ExplodeKeyRange(keyRange)
 			if !ok {
-				errChans <- fmt.Errorf("invalid key range %s", keyRange)
+				res.err = fmt.Errorf("invalid key range %s", keyRange)
+				resultsChan <- res
 				return
 			}
 
-			errChans <- GenerateForKeyRange(ctx, start, end, lowers, batchSize, seedSize, repo)
+			res.err = GenerateForKeyRange(ctx, start, end, lowers, batchSize, seedSize, repo)
+
+			for ch := start; ch <= end; ch++ {
+				res.prefixes = append(res.prefixes, ch)
+			}
+
+			resultsChan <- res
 		}(keyrange)
 
 	}
 
+	cordDB := models.NewShardStatusRepo(database.CoordinatorDB)
+
 	for i := 0; i < len(keyRanges); i++ {
-		err := <-errChans
-		if err != nil {
+		res := <-resultsChan
+
+		if res.err != nil {
 			log.Error().Err(err).Msg("failed to generate for key-range")
 			errr = err
+		}
+
+		prefixes := res.prefixes
+		shardID := res.keyRange
+
+		for _, prefix := range prefixes {
+			start := getShardStart(prefix)
+			err := cordDB.Create(ctx, &models.ShardStatus{
+				ShardID:   shardID,
+				ShardChar: string(prefix),
+				Status:    models.StatusProcessed,
+				Start:     int64(start),
+				End:       int64(start + seedSize),
+			})
+			if err != nil {
+				log.Error().Err(err).Str("shard", shardID).Str("shardChar", string(prefix)).Msg("failed to sync to coordinator db")
+			}
 		}
 	}
 

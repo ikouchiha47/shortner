@@ -11,6 +11,7 @@ CREATE TABLE shard_status (
     updated_at TIMESTAMP NOT NULL,
     PRIMARY KEY (shard_id, shard_char)
 );
+
 PRAGMA journal_mode=WAL;
 PRAGMA synchronous=NORMAL;
 PRAGMA temp_store=MEMORY;
@@ -30,6 +31,10 @@ CREATE TABLE IF NOT EXISTS urls (
 	updated_at TIMESTAMP NOT NULL,
 	deleted_at TIMESTAMP 
 );
+
+CREATE INDEX IF NOT EXISTS idx_short_key ON urls (short_key);
+CREATE INDEX IF NOT EXISTS idx_null_url ON urls(url) WHERE url is NULL;
+
 PRAGMA journal_mode=WAL;
 PRAGMA synchronous=NORMAL;
 PRAGMA temp_store=MEMORY;
