@@ -88,7 +88,7 @@ func (p *ShardProber) GetStatsForKeyRange(ctx context.Context, keyRange string) 
 
 	database := db.NewSqliteCoordinator(filteredRanges)
 
-	err := database.ConnectShards(ctx)
+	err := database.ConnectShards(ctx, db.DBReadOnlyMode)
 	if err != nil {
 		fmt.Errorf("failed to create databases")
 	}

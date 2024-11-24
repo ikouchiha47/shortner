@@ -173,9 +173,9 @@ func charToNumberRatio(s string) float64 {
 	}
 
 	if numDigits == 0 {
-		return float64(numChars)
+		return 0
 	}
-	return float64(numChars) / float64(numDigits)
+	return float64(numDigits) / float64(numChars)
 }
 
 // countSpecialCharacters counts the number of special characters in a URL

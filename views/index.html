@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Shortener</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    body {
+      background-color: #1e1e1e;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .input-group {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    input {
+      flex: 1;
+      padding: 20px;
+      font-size: 16px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: white;
+    }
+
+    button {
+      padding: 18px;
+      background-color: #9b4dca;
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      color: white;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    button i {
+      font-size: 20px;
+    }
+
+    button:hover {
+      background-color: #7b35b0;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 18px;
+      display: block;
+      text-decoration: none;
+      color: #9b4dca;
+      font-weight: 700;
+      background: #e2e2e2;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: monospace;
+      visibility: hidden;
+      transition: all 1s ease-in;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>url shortnr</h1>
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="Enter URL" />
+      <button onclick="shortenUrl()"><i class="fas fa-cut"></i></button>
+    </div>
+    <a id="result"></a>
+  </div>
+  <script>
+    async function shortenUrl() {
+      const url = document.getElementById('urlInput').value;
+      const resultDiv = document.getElementById('result');
+
+      if (!url) {
+        resultDiv.textContent = "Please enter a URL.";
+        return;
+      }
+
+
+      resultDiv.style.visibility = 'hidden'
+
+      try {
+        const authKey = await crypto.subtle.generateKey(
+          { name: "HMAC", hash: "SHA-256" },
+          true, 
+          ["sign", "verify"]
+        );
+        
+        const exportedKey = await crypto.subtle.exportKey("raw", authKey);
+        const authKeyString = Array.from(new Uint8Array(exportedKey))
+                                     .map(byte => byte.toString(16).padStart(2, '0'))
+                                     .join('');
+
+        const headers = {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Host": window.location.hostname,
+          "User-Agent": navigator.userAgent,
+          "AuthKey": authKeyString
+        };
+
+        const apiEndpoint = "{{.APIEndpoint}}"; 
+
+        const response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ url: url }),
+        });
+
+        const data = await response.json();
+
+
+        if (response.ok) {
+          resultDiv.textContent = `${data.url}`;
+          resultDiv.href = `${data.url}`;
+        } else {
+          resultDiv.textContent = `Error: ${data.error || 'Something went wrong'}`;
+        }
+
+        resultDiv.style.visibility = 'visible'
+      } catch (error) {
+        resultDiv.textContent = `Error: ${error.message}`;
+      }
+    }
+  </script>
+
+</body>
+</html>

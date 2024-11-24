@@ -208,7 +208,7 @@ func (ss *SqliteCoordinator[E]) RegisterCoordinator(cx context.Context) (*sql.DB
 }
 
 func (ss *SqliteCoordinator[E]) ConnectCoordinatorDB(ctx context.Context) (*sql.DB, error) {
-	conn, err := sql.Open("sqlite3", "shard_coordinator.db")
+	conn, err := sql.Open("sqlite3", "db_shard_coordinator.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create coordinator db")
 	}
@@ -217,8 +217,15 @@ func (ss *SqliteCoordinator[E]) ConnectCoordinatorDB(ctx context.Context) (*sql.
 	return conn, nil
 }
 
+type DBmode string
+
+const (
+	DBReadWriteMode DBmode = "rw"
+	DBReadOnlyMode  DBmode = "ro"
+)
+
 // TODO: pass a mode to indicate read or write
-func (ss *SqliteCoordinator[E]) ConnectShards(cx context.Context) error {
+func (ss *SqliteCoordinator[E]) ConnectShards(cx context.Context, mode DBmode) error {
 	shards := []*DBShard[E]{}
 	keyRanges := ss.keyRanges
 
@@ -227,10 +234,16 @@ func (ss *SqliteCoordinator[E]) ConnectShards(cx context.Context) error {
 		shards = append(shards, shard)
 	}
 
+	connQuery := "cache=shared&_threadsafe=1"
+
+	if mode == DBReadOnlyMode || mode == DBReadOnlyMode {
+		connQuery = fmt.Sprintf("%s&mode=%s", connQuery, mode)
+	}
+
 	for _, shard := range shards {
 		log.Printf("connecting to %s.db", shard.id)
 
-		conn, err := sql.Open("sqlite3", fmt.Sprintf("%s.db?cache=shared&mode=rwc&_threadsafe=1", shard.id))
+		conn, err := sql.Open("sqlite3", fmt.Sprintf("%s.db?%s", shard.id, connQuery))
 		if err != nil {
 			return fmt.Errorf("Error connecting to database %s: %v", shard.id, err)
 		}

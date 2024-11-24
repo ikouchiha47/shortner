@@ -37,9 +37,12 @@ type URLCreatedResponse struct {
 }
 
 func (ctrl *URLShortner) BuildResponse(u *models.URL) *URLCreatedResponse {
-	uri := &url.URL{}
+	uri, err := url.Parse(ctrl.domainName)
+	if err != nil {
+		return &URLCreatedResponse{}
+	}
+
 	uri.Scheme = "https"
-	uri.Host = ctrl.domainName
 	uri.Path = u.ShortKey
 
 	return &URLCreatedResponse{

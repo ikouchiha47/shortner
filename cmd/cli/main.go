@@ -133,9 +133,9 @@ func (c *ProbeCmd) Run(ctx context.Context, args []string) {
 
 	database := db.NewSqliteCoordinator(filteredRanges)
 
-	err := database.ConnectShards(ctx)
+	err := database.ConnectShards(ctx, db.DBReadOnlyMode)
 	if err != nil {
-		log.Fatal().Msg("failed to create databases")
+		log.Fatal().Msg("failed to connect to databases")
 	}
 
 	shards, ok := database.GetShards()

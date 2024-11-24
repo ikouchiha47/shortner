@@ -29,6 +29,8 @@ type SqliteSyncer struct {
 }
 
 func NewDBSyncer(shards []string) *SqliteSyncer {
+	shards = append(shards, "shard_coordinator")
+
 	return &SqliteSyncer{databases: slicendice.Map(shards, func(s string, _ int) shard {
 		return shard{id: s}
 	})}

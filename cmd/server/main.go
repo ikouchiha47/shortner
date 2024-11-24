@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +22,8 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
 
+	"html/template"
+
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
@@ -29,7 +32,7 @@ type EchoServer struct{}
 func CreateReadDatabaseConn(ctx context.Context, keyRanges []string) *db.SqliteCoordinator[string] {
 	database := db.NewSqliteCoordinator(keyRanges)
 
-	if err := database.ConnectShards(ctx); err != nil {
+	if err := database.ConnectShards(ctx, db.DBReadOnlyMode); err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to databases")
 	}
 
@@ -64,7 +67,7 @@ func CreateReadDatabaseConn(ctx context.Context, keyRanges []string) *db.SqliteC
 func CreateWriteDatabaseConn(ctx context.Context, keyRanges []string) *db.SqliteCoordinator[string] {
 	database := db.NewSqliteCoordinator(keyRanges)
 
-	if err := database.ConnectShards(ctx); err != nil {
+	if err := database.ConnectShards(ctx, db.DBReadWriteMode); err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to databases")
 	}
 
@@ -79,6 +82,15 @@ func CreateWriteDatabaseConn(ctx context.Context, keyRanges []string) *db.Sqlite
 
 	database.SetPolicy(&db.RoundRobinPolicy[string]{Shards: shards})
 	return database
+}
+
+type TemplateRenderer struct {
+	templates *template.Template
+}
+
+// Render method to render the templates with data
+func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
 }
 
 func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfig) {
@@ -144,6 +156,19 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 
 	e.GET("/:shortKey", ctrl.Get)
 	e.POST("/", ctrl.Post)
+
+	e.Renderer = &TemplateRenderer{
+		templates: template.Must(template.ParseGlob("views/*.html")),
+	}
+
+	// Define the route to serve the index page
+	e.GET("/", func(c echo.Context) error {
+		data := map[string]interface{}{
+			"APIEndpoint": cfg.DomainName,
+		}
+
+		return c.Render(http.StatusOK, "index.html", data)
+	})
 
 	go func() {
 		log.Info().Str("port", port).Msg("server started at")
