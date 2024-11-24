@@ -217,6 +217,7 @@ func (ss *SqliteCoordinator[E]) ConnectCoordinatorDB(ctx context.Context) (*sql.
 	return conn, nil
 }
 
+// TODO: pass a mode to indicate read or write
 func (ss *SqliteCoordinator[E]) ConnectShards(cx context.Context) error {
 	shards := []*DBShard[E]{}
 	keyRanges := ss.keyRanges

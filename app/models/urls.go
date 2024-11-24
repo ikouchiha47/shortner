@@ -59,7 +59,16 @@ const CreateBatchesQuery = `INSERT INTO urls (
 ) VALUES %s;
 `
 
-const FindURLByShortKey = `SELECT url, short_key, updated_at FROM urls WHERE short_key = ? AND (malicious IS NULL or malicious = 0) AND deleted_at IS NULL LIMIT 1`
+const FindURLByShortKey = `
+	SELECT url
+		,short_key
+		,updated_at
+	FROM urls
+	WHERE short_key = ?
+	AND (malicious IS NULL or malicious = 0)
+	AND deleted_at IS NULL
+	LIMIT 1
+`
 
 const DeleteEntryQuery = `UPDATE urls SET deleted_at = ? WHERE short_key = ?`
 
@@ -203,8 +212,6 @@ func (repo *URLRepo) CreateBatches(ctx context.Context, urls []*URL) error {
 			}
 
 			errChan <- tx.Commit()
-			// _, err := d.Conn().ExecContext(ctx, query, values...)
-			// errChan <- err
 			// log.Println("inserted", len(values)/5, database.ShardKey()) // for 5 columns
 		}(database)
 	}
@@ -221,10 +228,6 @@ func (repo *URLRepo) CreateBatches(ctx context.Context, urls []*URL) error {
 			log.Println("timeout")
 			errr = fmt.Errorf("timeout\n")
 		}
-
-		// if err := <-errChan; err != nil {
-		// 	errr = fmt.Errorf("%v\n", err)
-		// }
 	}
 
 	close(errChan)

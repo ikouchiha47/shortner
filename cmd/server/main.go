@@ -6,16 +6,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/go-batteries/shortner/app/config"
 	"github.com/go-batteries/shortner/app/db"
 	"github.com/go-batteries/shortner/app/models"
 	"github.com/go-batteries/shortner/app/seed"
+	"github.com/go-batteries/shortner/app/watchers"
 	"github.com/go-batteries/shortner/cmd/server/controller"
 	"github.com/go-batteries/slicendice"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog/log"
+
+	"github.com/bradfitz/gomemcache/memcache"
 )
 
 type EchoServer struct{}
@@ -96,7 +102,7 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     []string{fmt.Sprintf("http://localhost:%s", port)},
+		AllowOrigins:     []string{cfg.DomainName},
 		AllowCredentials: true,
 		AllowHeaders: []string{
 			echo.HeaderOrigin,
@@ -117,6 +123,20 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 			// Access Token Headers,
 		},
 	}))
+
+	if len(cfg.CacheAddrs) > 0 {
+		mc := memcache.New(cfg.CacheAddrs...)
+		if mc == nil {
+			log.Fatal().Msg("Failed to connect to Memcached")
+		}
+		rateLimitConfig := controller.RateLimitConfig{
+			Limit:  100,
+			Window: 60 * time.Second,
+		}
+
+		e.Use(controller.RateLimiter(mc, rateLimitConfig))
+	}
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: e,
@@ -149,9 +169,51 @@ func main() {
 	srvr := &EchoServer{}
 	ctx := context.Background()
 
+	seeder := &seed.Seeder{}
+	syncer := watchers.NewDBSyncer(seeder.Shards(5))
+
+	var once sync.Once
+
+	once.Do(func() {
+		tick := time.NewTicker(24 * time.Hour)
+
+		go func() {
+			log.Info().Msg("syncing sqlite db every day to s3")
+
+			for {
+				select {
+				case <-tick.C:
+					cx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
+					defer cancel()
+
+					syncer.Run(cx)
+				}
+			}
+		}()
+	})
+
+	memcachedAddrsStr := os.Getenv("MEMCACHED_URLS")
+	addresses := []string{}
+
+	if memcachedAddrsStr != "" {
+		addresses = strings.Split(memcachedAddrsStr, ",")
+	}
+
+	// Define rate limit configuration
+	appPort := os.Getenv("PORT")
+	if appPort == "" {
+		appPort = "9091"
+	}
+
+	domain := os.Getenv("domain")
+	if domain == "" {
+		domain = "http://localhost:" + appPort
+	}
+
 	srvr.StartHTTPServer(ctx, &config.AppConfig{
-		AppPort:    "9091",
+		AppPort:    appPort,
 		SeedSize:   "1M",
-		DomainName: "localhost",
+		DomainName: domain,
+		CacheAddrs: addresses,
 	})
 }

@@ -9,6 +9,7 @@ type AppConfig struct {
 	AppPort    string
 	SeedSize   string
 	DomainName string
+	CacheAddrs []string
 }
 
 var sizeMap = map[string]uint64{
