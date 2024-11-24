@@ -34,6 +34,17 @@ const (
 	ShardStatusUpdateStatusQuery = `UPDATE shard_status SET end = ?, updated_at = ?, generation = generation + 1, status = ? WHERE shard_id = ? AND shard_char = ? AND generation = ? AND status = ?`
 )
 
+func ExplodeKeyRange(shardID string) (byte, byte, bool) {
+	splits := strings.Split(shardID, "-")
+	var noop byte
+
+	if len(splits) < 2 {
+		return noop, noop, false
+	}
+
+	return splits[0][0], splits[1][0], true
+}
+
 type ShardStatusRepo struct {
 	db *sql.DB
 

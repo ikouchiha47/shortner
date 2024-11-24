@@ -44,14 +44,6 @@ func (bg *Base58Generator) NextBatch(ctx context.Context, totalCount, batchSize 
 				batch := []string{}
 				nextLastIdx := lastIdx + batchSize
 
-				// if lastIdx == totalCount {
-				// 	if len(batch) > 0 {
-				// 		log.Println("sending remaining batch", len(batch), "for", bg.prefix)
-				// 		job <- Shuffle(batch, int(len(batch)/3))
-				// 	}
-				//
-				// 	return
-				// }
 				for i := lastIdx; i < nextLastIdx; i++ {
 					result := base58.Encode(
 						big.NewInt(0).Add(
@@ -61,18 +53,10 @@ func (bg *Base58Generator) NextBatch(ctx context.Context, totalCount, batchSize 
 					)
 
 					batch = append(batch, fmt.Sprintf("%s%s", bg.prefix, result))
-
-					// if len(batch) == int(batchSize) {
-					// 	log.Println("sending batch", batchSize, bg.prefix)
-					// 	job <- Shuffle(batch, int(batchSize/3))
-					// 	batch = []string{}
-					// }
-
 				}
 
 				lastIdx = nextLastIdx
 
-				// TODO: probably can remove this
 				if len(batch) > 0 {
 					log.Debug().Str("prefix", bg.prefix).Msgf("sending remaining batch %d", len(batch))
 					job <- Shuffle(batch, int(len(batch)/3))
@@ -85,7 +69,6 @@ func (bg *Base58Generator) NextBatch(ctx context.Context, totalCount, batchSize 
 
 			}
 		}
-
 	}()
 
 	return resultChan

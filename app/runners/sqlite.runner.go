@@ -2,6 +2,7 @@ package runners
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/go-batteries/shortner/app/db"
@@ -108,14 +109,36 @@ func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize 
 	// create one database for each and then
 	// load database in sqlite for each key range.
 
-	errr = GenerateForKeyRange(ctx, 'a', 'e', lowers, batchSize, seedSize, repo)
+	errChans := make(chan error, len(keyRanges))
+
+	for _, keyrange := range keyRanges {
+		log.Info().Msgf("generating keys for shard %s", keyrange)
+
+		go func(keyRange string) {
+			start, end, ok := models.ExplodeKeyRange(keyRange)
+			if !ok {
+				errChans <- fmt.Errorf("invalid key range %s", keyRange)
+				return
+			}
+
+			errChans <- GenerateForKeyRange(ctx, start, end, lowers, batchSize, seedSize, repo)
+		}(keyrange)
+
+	}
+
+	for i := 0; i < len(keyRanges); i++ {
+		err := <-errChans
+		if err != nil {
+			log.Error().Err(err).Msg("failed to generate for key-range")
+			errr = err
+		}
+	}
+
 	return errr
 }
 
 func GenerateForKeyRange(ctx context.Context, keyStart, keyEnd byte, lowers []string, batchSize int, seedSize uint64, repo *models.URLRepo) error {
 	batchShard := []byte{}
-	// keyStart := 'a'
-	// keyEnd := 'e'
 	for _, lower := range lowers {
 		if lower[0] >= byte(keyStart) && lower[0] <= byte(keyEnd) {
 			batchShard = append(batchShard, lower[0])
@@ -126,6 +149,7 @@ func GenerateForKeyRange(ctx context.Context, keyStart, keyEnd byte, lowers []st
 	defer close(sinchan)
 
 	for _, shardKey := range batchShard {
+		log.Info().Msg("") // to add a new line
 		log.Info().Str("shardKey", string(shardKey)).Msg("inserting records for shardkey")
 
 		last := getShardStart(shardKey)
@@ -150,8 +174,6 @@ func GenerateForKeyRange(ctx context.Context, keyStart, keyEnd byte, lowers []st
 				return err
 			}
 		}
-
-		// close(resultChan)
 	}
 
 	return nil
