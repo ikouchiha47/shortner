@@ -1,0 +1,6 @@
+outdb/
+*.db
+*logs
+*tmp
+out/*
+!out/.keep
