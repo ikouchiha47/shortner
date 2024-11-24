@@ -44,8 +44,8 @@ func (ctrl *URLShortner) Get(c echo.Context) error {
 	}
 
 	url, err := ctrl.urlRepo.Find(req.Context(), shortKey)
-	if url.Link == nil {
-		err = errors.New("bad_content")
+	if url != nil && url.Link == nil {
+		err = errors.New("unassigned")
 	}
 
 	if err != nil {

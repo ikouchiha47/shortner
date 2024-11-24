@@ -1,6 +1,10 @@
-outdb/
 *.db
 *logs
 *tmp
-out/*
 !out/.keep
+*shm
+*wal
+
+outdb/
+out/*
+

@@ -108,7 +108,7 @@ func (repo *URLRepo) Find(ctx context.Context, shortKey string) (*URL, error) {
 		&data.UpdatedAt,
 	)
 
-	return data, nil
+	return data, err
 }
 
 // CreateBatches creates a batch of records

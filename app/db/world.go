@@ -196,7 +196,7 @@ func (ss *SqliteCoordinator[E]) GetShard(key E) (Shard[E], error) {
 func (ss *SqliteCoordinator[E]) RegisterCoordinator(cx context.Context) (*sql.DB, error) {
 	// Create shard status table
 	if ss.CoordinatorDB == nil {
-		ss.GetCoordinatorDB(cx)
+		ss.ConnectCoordinatorDB(cx)
 	}
 
 	_, err := ss.CoordinatorDB.ExecContext(cx, CREATE_SHARD_STATUS_QUERY)
@@ -207,7 +207,7 @@ func (ss *SqliteCoordinator[E]) RegisterCoordinator(cx context.Context) (*sql.DB
 	return ss.CoordinatorDB, nil
 }
 
-func (ss *SqliteCoordinator[E]) GetCoordinatorDB(ctx context.Context) (*sql.DB, error) {
+func (ss *SqliteCoordinator[E]) ConnectCoordinatorDB(ctx context.Context) (*sql.DB, error) {
 	conn, err := sql.Open("sqlite3", "shard_coordinator.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create coordinator db")
@@ -215,6 +215,30 @@ func (ss *SqliteCoordinator[E]) GetCoordinatorDB(ctx context.Context) (*sql.DB, 
 
 	ss.CoordinatorDB = conn
 	return conn, nil
+}
+
+func (ss *SqliteCoordinator[E]) ConnectShards(cx context.Context) error {
+	shards := []*DBShard[E]{}
+	keyRanges := ss.keyRanges
+
+	for _, keyRange := range keyRanges {
+		shard := &DBShard[E]{id: ss.ToDbName(keyRange), shardKey: keyRange}
+		shards = append(shards, shard)
+	}
+
+	for _, shard := range shards {
+		log.Printf("connecting to %s.db", shard.id)
+
+		conn, err := sql.Open("sqlite3", fmt.Sprintf("%s.db?cache=shared&mode=rwc&_threadsafe=1", shard.id))
+		if err != nil {
+			return fmt.Errorf("Error connecting to database %s: %v", shard.id, err)
+		}
+
+		shard.conn = conn
+		ss.router.AddShard(shard)
+	}
+
+	return nil
 }
 
 func (ss *SqliteCoordinator[E]) RegisterShards(cx context.Context) error {

@@ -20,27 +20,28 @@ import (
 type EchoServer struct{}
 
 func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfig) {
-	// conn := database.ConnectSqlite(cfg.DbName)
-	//
-	// ctx := context.Background()
-	// dbconnctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	// defer cancel()
-	//
-	// dbconn := conn.Connect(dbconnctx)
-
 	seeder := seed.RegisterUrlSeeder()
 	keyRanges := seeder.Shards(5)
 
 	database := db.NewSqliteCoordinator(keyRanges)
 
-	// statusDB, err := database.GetCoordinatorDB(ctx)
-	// if err != nil {
-	// 	log.Fatal().Err(err).Msg("failed to get coordinator db")
-	// }
+	if err := database.ConnectShards(ctx); err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to databases")
+	}
+
+	if _, err := database.ConnectCoordinatorDB(ctx); err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to coordinator db")
+	}
+
+	shards, ok := database.GetShards()
+	if !ok {
+		log.Fatal().Msg("should not have failed to create shards")
+	}
+
+	database.SetPolicy(&db.RoundRobinPolicy[string]{Shards: shards})
 	// statusRepo := models.NewShardStatusRepo(statusDB, config.MustParseSeedSize(cfg.SeedSize, "1M"))
 
 	urlRepo := models.NewURLRepo(database)
-
 	ctrl := controller.NewURLShortnerCtrl(urlRepo)
 
 	port := cfg.AppPort
@@ -101,4 +102,14 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("error during server shutdown")
 	}
+}
+
+func main() {
+	srvr := &EchoServer{}
+	ctx := context.Background()
+
+	srvr.StartHTTPServer(ctx, &config.AppConfig{
+		AppPort:  "9091",
+		SeedSize: "1M",
+	})
 }
