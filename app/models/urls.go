@@ -3,10 +3,10 @@ package models
 import (
 	"context"
 	"crypto/sha1"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -59,9 +59,15 @@ const CreateBatchesQuery = `INSERT INTO urls (
 ) VALUES %s;
 `
 
-const FindURLByShortKey = `SELECT url, short_key, updated_at FROM urls WHERE short_key = ? AND malicious = 0 AND deleted_at IS NULL`
+const FindURLByShortKey = `SELECT url, short_key, updated_at FROM urls WHERE short_key = ? AND (malicious IS NULL or malicious = 0) AND deleted_at IS NULL LIMIT 1`
 
 const DeleteEntryQuery = `UPDATE urls SET deleted_at = ? WHERE short_key = ?`
+
+// const AssignKeyToURLQuery = `
+// UPDATE urls SET url = ?, updated_at = ? WHERE short_key = (SELECT short_key FROM urls WHERE url IS NULL LIMIT 1);
+// `
+const SelectEmptyShortKey = `SELECT short_key FROM urls WHERE url IS NULL LIMIT 1;`
+const AssignURLQuery = `UPDATE urls SET url = ?, updated_at = ? WHERE short_key = ? AND url IS NULL;`
 
 // DeleteEntry, marks the entry as deleted by setting deleted_at
 func (repo *URLRepo) Delete(ctx context.Context, shortKey string) error {
@@ -82,6 +88,50 @@ func (repo *URLRepo) Delete(ctx context.Context, shortKey string) error {
 	return err
 }
 
+func (repo *URLRepo) AssignURL(ctx context.Context, urlStr string) (*URL, error) {
+	db, err := repo.sharder.GetShard("")
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := db.Conn().BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := tx.QueryRowContext(ctx, SelectEmptyShortKey)
+	if rows.Err() != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	var shortKey string
+
+	if err := rows.Scan(&shortKey); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+
+	_, err = tx.ExecContext(ctx, AssignURLQuery, url.QueryEscape(urlStr), now, shortKey)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &URL{
+		Link:      &urlStr,
+		UpdatedAt: now,
+		ShortKey:  shortKey,
+	}, nil
+}
+
 // Find find an URL by shortKey
 func (repo *URLRepo) Find(ctx context.Context, shortKey string) (*URL, error) {
 	db, err := repo.sharder.GetShard(shortKey)
@@ -89,15 +139,9 @@ func (repo *URLRepo) Find(ctx context.Context, shortKey string) (*URL, error) {
 		return nil, err
 	}
 
-	rows, err := db.Conn().QueryContext(ctx, FindURLByShortKey, shortKey)
-	if err != nil {
+	rows := db.Conn().QueryRowContext(ctx, FindURLByShortKey, shortKey)
+	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	defer rows.Close()
-
-	if ok := rows.Next(); !ok {
-		return nil, sql.ErrNoRows
 	}
 
 	data := &URL{}

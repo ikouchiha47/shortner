@@ -6,8 +6,9 @@ import (
 )
 
 type AppConfig struct {
-	AppPort  string
-	SeedSize string
+	AppPort    string
+	SeedSize   string
+	DomainName string
 }
 
 var sizeMap = map[string]uint64{
