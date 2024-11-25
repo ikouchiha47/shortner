@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -81,6 +82,7 @@ type ProbeCmd struct {
 	fs       *flag.FlagSet
 	cmdName  string
 	keyRange string
+	query    string
 
 	coord  *db.SqliteCoordinator[string]
 	seeder *seed.Seeder
@@ -100,7 +102,8 @@ func NewProbCmd() *ProbeCmd {
 }
 
 func (c *ProbeCmd) SetArgs() {
-	c.fs.StringVar(&c.keyRange, "keyrange", "a-z", "key ranges can be a-z or a-e. This takes care of all")
+	c.fs.StringVar(&c.keyRange, "keyrange", "a-b", "key ranges can be a-z or a-e. This takes care of all")
+	c.fs.StringVar(&c.query, "query", "", "custom query to run against all shards")
 }
 
 func (c *ProbeCmd) Run(ctx context.Context, args []string) {
@@ -133,6 +136,12 @@ func (c *ProbeCmd) Run(ctx context.Context, args []string) {
 		}
 	}
 
+	if c.query != "" {
+		filteredRanges = keyRanges
+	} else {
+		c.query = models.URLKeysProberQuery
+	}
+
 	database := db.NewSqliteCoordinator(filteredRanges)
 
 	err := database.ConnectShards(ctx, db.DBReadOnlyMode)
@@ -145,15 +154,28 @@ func (c *ProbeCmd) Run(ctx context.Context, args []string) {
 		log.Fatal().Msg("should not have failed to create shards")
 	}
 
+	var wg sync.WaitGroup
+
 	for _, shard := range shards {
-		repo := models.NewProber(shard.ShardKey(), shard.Conn(), models.URLKeysProberQuery)
-		stats, err := repo.GetStats(ctx)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to get db status")
-		} else {
-			fmt.Printf("shard: %s, stats: %v", shard.ShardKey(), *stats)
-		}
+		wg.Add(1)
+
+		go func(w *sync.WaitGroup, shard db.Shard[string]) {
+			defer w.Done()
+
+			repo := models.NewProber(shard.ShardKey(), shard.Conn(), c.query)
+
+			stats, err := repo.GetStatsFull(ctx)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to get db status")
+				return
+			}
+
+			log.Info().Msgf("shard: %s, stats: %v", shard.ShardKey(), stats)
+
+		}(&wg, shard)
 	}
+
+	wg.Wait()
 }
 
 type BackupCmd struct {

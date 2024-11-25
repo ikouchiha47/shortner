@@ -40,6 +40,62 @@ type Stats struct {
 	Error        error  `json:"error,omitempty"`
 }
 
+type FullResult map[string]interface{}
+
+func (p *Prober) GetStatsFull(ctx context.Context, args ...any) ([]FullResult, error) {
+	rows, err := p.conn.QueryContext(ctx, p.Query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var results = []FullResult{}
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+
+		// We do this, to create a Box (interface), which will
+		// hold the value and the type
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+
+		rowMap := make(FullResult)
+
+		for i, col := range columns {
+			var v interface{}
+			rawValue := values[i]
+
+			b, ok := rawValue.([]byte)
+			if ok {
+				v = string(b)
+			} else {
+				v = rawValue
+			}
+			rowMap[col] = v
+		}
+
+		results = append(results, rowMap)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, err
+}
+
 func (p *Prober) GetStats(ctx context.Context, args ...any) (*Stats, error) {
 	row := p.conn.QueryRowContext(ctx, p.Query, args...)
 	if err := row.Err(); err != nil {
