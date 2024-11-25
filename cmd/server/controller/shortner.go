@@ -73,6 +73,8 @@ func (ctrl *URLShortner) Post(c echo.Context) error {
 
 	checker := config.NewURLChecker(config.DefaultOptions())
 	issues, err := checker.ValidateURL(body.URL)
+	fmt.Println("kkkkkkk", err)
+
 	if err != nil {
 		log.Error().Err(err).Msg("invalid url")
 

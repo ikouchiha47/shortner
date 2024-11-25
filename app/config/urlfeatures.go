@@ -81,6 +81,10 @@ func (checker URLChecker) ValidateURL(inputURL string) ([]string, error) {
 		return []string{"Invalid URL format"}, errors.New("fuck him")
 	}
 
+	if parsed.Hostname() == "" || parsed.Scheme == "" {
+		return []string{"Invalid URL format"}, errors.New("fuck golang, invalid url")
+	}
+
 	var issues []string
 
 	// Check URL Length
