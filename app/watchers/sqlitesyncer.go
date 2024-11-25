@@ -69,7 +69,7 @@ func (w *SqliteSyncer) Run(ctx context.Context) {
 	}
 
 	for _, shard := range w.databases {
-		fileName := fmt.Sprint("%s.db", shard.ID())
+		fileName := fmt.Sprintf("%s.db", shard.ID())
 		backupFileName := fmt.Sprintf("backup_%s.db", shard.ID())
 
 		cfg, err := config.LoadDefaultConfig(
