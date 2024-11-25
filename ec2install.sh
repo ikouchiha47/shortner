@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# sudo mkdir -p /app
-# sudo chown -R ec2-user:ec2-user /app
+set -e
+
+sudo mkdir -p /app
+sudo chown -R ec2-user:ec2-user /app
 
 sudo amazon-linux-extras enable epel
 sudo yum clean metadata; sudo yum -y install epel-release; sudo yum update -y
@@ -21,8 +23,16 @@ cd app && \
 	make build.all && \
 	sudo cp supervisor.conf /etc/supervisord.conf 
 
+echo "make sure your .env is up to date"
 
-sudo supervisord -c /etc/supervisord.conf
+if [[ ! -f ".env" ]]; then
+	echo "you need to setup your .env"
+	echo "otherwise re run"
+	echo "supervisord -c /path/to/supervisord.conf"
+	exit 1
+fi
+
+supervisord -c /etc/supervisord.conf
 curl localhost:9091
 
 sudo certbot --nginx -d shrtn.cloud
