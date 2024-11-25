@@ -4,7 +4,7 @@
 # sudo chown -R ec2-user:ec2-user /app
 
 sudo amazon-linux-extras enable epel
-sudo yum clean metadata; sudo yum install epel-release; sudo yum update -y
+sudo yum clean metadata; sudo yum -y install epel-release; sudo yum update -y
 
 sudo yum install -y git memcached go nginx certbot certbot-nginx
 
@@ -19,7 +19,6 @@ cd app && \
 	cd shortner && \
 	go env -w GOPATH=/app/go; go env -w GOMODCACHE=/app/go/pkg/mod && \
 	make build.all && \
-	sudo cp nginx.conf /etc/nginx/modules/shortner.conf && \
 	sudo cp supervisor.conf /etc/supervisord.conf 
 
 
