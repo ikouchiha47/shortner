@@ -109,7 +109,7 @@ func (ctrl *URLShortner) Get(c echo.Context) error {
 
 	expectsJSONResp := strings.EqualFold(accept, AcceptTypeJSON)
 
-	if shortKey == "" {
+	if shortKey == "" || len(shortKey) > 12 {
 		errCode := http.StatusBadRequest
 
 		if expectsJSONResp {
