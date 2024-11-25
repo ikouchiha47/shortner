@@ -4,8 +4,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>URL Shortener</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <title>Ad-Free URL Shortener | Fast, Secure, and Simple</title>
+    <meta name="description" content="Looking for the best ad-free URL shortener? Our tool provides fast, secure, and reliable URL shortening with no intrusive ads. Try it now for free!">
+    <meta name="keywords" content="ad-free URL shortener, best URL shortener, free URL shortener, secure URL shortener, fast URL shortener, no ads">
+    <meta name="author" content="ikouchiha47">
+    <link rel="canonical" href="{{.DomainName}}">
+    <meta property="og:title" content="Best Ad-Free URL Shortener | Fast, Secure, and Simple">
+    <meta property="og:description" content="Experience hassle-free URL shortening with our ad-free platform. Get short links quickly and securely without ads. Perfect for professional use!">
+    <meta property="og:url" content="{{.DomainName}}">
+    <meta property="og:image" content="{{.DomainName}}/images/og-image.png">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="Ad free URL shortner">
+    <meta name="twitter:title" content="Best Ad-Free URL Shortener">
+    <meta name="twitter:description" content="Shorten your URLs with the best ad-free tool. Secure, fast, and completely free. Get started now!">
+    <meta name="twitter:image" content="{{.DomainName}}/images/twitter-image.png">
+
+    <link rel="icon" href="{{.DomainName}}/images/favicon.png" type="image/png">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
   <style>
     * {
       padding: 0;
@@ -26,7 +41,7 @@
     .container {
       text-align: center;
       max-width: 480px;
-      width: 100%;
+      width: 88%;
     }
 
     .input-group {
@@ -93,6 +108,19 @@
     <a id="result"></a>
   </div>
   <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const titleText = "Welcome to My Scrolling Title Example - ";
+      let index = 0;
+
+      function scrollTitle() {
+        document.title = titleText.substring(index) + titleText.substring(0, index);
+        index = (index + 1) % titleText.length;
+        setTimeout(scrollTitle, 200);
+      }
+
+      scrollTitle();
+    });
+
     async function shortenUrl() {
       const url = document.getElementById('urlInput').value;
       const resultDiv = document.getElementById('result');

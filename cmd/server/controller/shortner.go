@@ -107,6 +107,8 @@ func (ctrl *URLShortner) Get(c echo.Context) error {
 	accept := req.Header.Get("Accept")
 	shortKey := strings.TrimSpace(c.Param("shortKey"))
 
+	log.Info().Str("shortKey", shortKey).Msg("fetching url")
+
 	expectsJSONResp := strings.EqualFold(accept, AcceptTypeJSON)
 
 	if shortKey == "" || len(shortKey) > 12 {

@@ -134,6 +134,20 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 		},
 	}))
 
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		Root:   "assets/images",
+		Browse: false,
+	}))
+
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if strings.HasPrefix(c.Path(), "/images") {
+				c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+			}
+			return next(c)
+		}
+	})
+
 	if len(cfg.CacheAddrs) > 0 {
 		mc := memcache.New(cfg.CacheAddrs...)
 		if mc == nil {
@@ -147,26 +161,28 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 		e.Use(controller.RateLimiter(mc, rateLimitConfig))
 	}
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", port),
-		Handler: e,
-	}
-
-	e.GET("/:shortKey", ctrl.Get)
-	e.POST("/", ctrl.Post)
-
 	e.Renderer = &TemplateRenderer{
 		templates: template.Must(template.ParseGlob("views/*.html")),
 	}
 
+	e.Static("/images", "assets/images")
 	// Define the route to serve the index page
 	e.GET("/", func(c echo.Context) error {
 		data := map[string]interface{}{
 			"APIEndpoint": cfg.DomainName,
+			"DomainName":  cfg.DomainName,
 		}
 
 		return c.Render(http.StatusOK, "index.html", data)
 	})
+
+	e.GET("/:shortKey", ctrl.Get)
+	e.POST("/", ctrl.Post)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: e,
+	}
 
 	go func() {
 		log.Info().Str("port", port).Msg("server started at")
