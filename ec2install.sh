@@ -23,7 +23,15 @@ cd app && \
 
 
 sudo supervisord -c /etc/supervisord.conf
+curl localhost:9091
 
-# sudo certbot --nginx -d shrtn.cloud
-# sudo systemctl status certbot.timer
+sudo certbot --nginx -d shrtn.cloud
 
+sudo cp /app/shortner/shortner.nginx.conf /etc/nginx/nginx.conf
+sudo certbot --nginx -d shrtn.cloud
+
+sudo cp /app/shortner/certbot.timer /etc/systemd/system/
+sudo cp /app/shortner/certbot.service /etc/systemd/system/
+
+sudo systemctl daemon-reload
+sudo systemctl start certbot.timer
