@@ -10,18 +10,28 @@ sudo yum clean metadata; sudo yum -y install epel-release; sudo yum update -y
 
 sudo yum install -y git memcached go nginx certbot certbot-nginx
 
-pip3 install -U supervisor 
+# pip3 install -U supervisor 
 
 mkdir -p /tmp/{log,run}
 
 sudo systemctl start memcached
 
+## install sqlite from source
+echo "install sqlite from source. 3.47.1"
+
+wget https://www.sqlite.org/2024/sqlite-autoconf-3470100.tar.gz
+tar sqlite-autoconf-3470100.tar.gz
+cd sqlite-autoconf && \
+	./configure && \
+	make && sudo make install
+
+echo "fetching source code"
+
 cd app && \
 	git clone https://github.com/ikouchiha47/shortner.git && \
 	cd shortner && \
 	go env -w GOPATH=/app/go; go env -w GOMODCACHE=/app/go/pkg/mod && \
-	make build.all && \
-	sudo cp supervisor.conf /etc/supervisord.conf 
+	make build.all
 
 echo "make sure your .env is up to date"
 
@@ -32,8 +42,6 @@ if [[ ! -f ".env" ]]; then
 	exit 1
 fi
 
-supervisord -c /etc/supervisord.conf
-curl localhost:9091
 
 sudo certbot --nginx -d shrtn.cloud
 
@@ -54,3 +62,6 @@ sudo systemctl start certbot.timer
 sudo systemctl start shrtnr.service
 sudo systemctl start syncs3.timer
 sudo systemctl start refiller.timer
+
+
+curl localhost:9091
