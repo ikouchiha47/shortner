@@ -186,6 +186,42 @@ func (c *BackupCmd) Run(ctx context.Context, args []string) {
 
 }
 
+type RefillCmd struct {
+	fs      *flag.FlagSet
+	cmdName string
+
+	batchSize int
+	seedSize  string
+}
+
+func NewRefillCmd() *RefillCmd {
+	return &RefillCmd{
+		fs:      flag.NewFlagSet("refill", flag.ExitOnError),
+		cmdName: "refill",
+	}
+}
+
+func (c *RefillCmd) SetArgs() {
+	c.fs.IntVar(&c.batchSize, "batch", 1000, "batch size to insert per key in range")
+	c.fs.StringVar(&c.seedSize, "seed", "100K", "total number of entries per key in range")
+}
+
+func (c *RefillCmd) Run(ctx context.Context, args []string) error {
+	if err := c.fs.Parse(args); err != nil {
+		log.Fatal().Err(err).Msg("invalid cli args for refill")
+	}
+
+	seedSize := config.MustParseSeedSize(c.seedSize, "100K")
+	seeder := &seed.Seeder{}
+
+	err := runners.RefillKeys(ctx, seeder, c.batchSize, seedSize)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to repopulate database")
+	}
+
+	return err
+}
+
 func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
@@ -206,6 +242,9 @@ func main() {
 	bcmd := NewBackupCmd()
 	bcmd.SetArgs()
 
+	rcmd := NewRefillCmd()
+	rcmd.SetArgs()
+
 	switch os.Args[1] {
 	case scmd.cmdName:
 		scmd.Run(ctx, os.Args[2:])
@@ -213,6 +252,8 @@ func main() {
 		pcmd.Run(ctx, os.Args[2:])
 	case bcmd.cmdName:
 		bcmd.Run(ctx, os.Args[2:])
+	case rcmd.cmdName:
+		rcmd.Run(ctx, os.Args[2:])
 	default:
 		log.Fatal().Msgf("invalid command %s", os.Args[1])
 	}

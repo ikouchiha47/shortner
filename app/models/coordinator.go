@@ -11,8 +11,8 @@ import (
 type ShardStatus struct {
 	ShardID    string    `db:"shard_id"`
 	ShardChar  string    `db:"shard_char"`
-	Start      int64     `db:"start"`
-	End        int64     `db:"end"`
+	Start      uint64    `db:"start"`
+	End        uint64    `db:"end"`
 	Generation int64     `db:"generation"`
 	Status     string    `db:"status"`
 	CreatedAt  time.Time `db:"created_at"`
@@ -53,20 +53,14 @@ func NewShardStatusRepo(db *sql.DB) *ShardStatusRepo {
 }
 
 func (repo *ShardStatusRepo) GetLastState(ctx context.Context, shardID, shardChar string) (*ShardStatus, error) {
-	rows, err := repo.db.QueryContext(ctx, ShardStatusSelectQuery, shardID, shardChar)
-	if err != nil {
+	res := repo.db.QueryRowContext(ctx, ShardStatusSelectQuery, shardID, shardChar)
+	if err := res.Err(); err != nil {
 		return nil, err
-	}
-
-	defer rows.Close()
-
-	if ok := rows.Next(); !ok {
-		return nil, sql.ErrNoRows
 	}
 
 	shardStatus := &ShardStatus{}
 
-	err = rows.Scan(
+	err := res.Scan(
 		&shardStatus.ShardID,
 		&shardStatus.ShardChar,
 		&shardStatus.Start,

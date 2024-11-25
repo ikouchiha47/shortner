@@ -45,8 +45,12 @@ sudo cp /app/shortner/systemd/certbot.service /etc/systemd/system/
 sudo cp /app/shortner/systemd/shrtnr.service /etc/systemd/system/
 sudo cp /app/shortner/systemd/syncs3.service /etc/systemd/system/
 sudo cp /app/shortner/systemd/syncs3.timer /etc/systemd/system/
+sudo cp /app/shortner/systemd/refiller.service /etc/systemd/system/
+sudo cp /app/shortner/systemd/refiller.timer /etc/systemd/system/
+
 
 sudo systemctl daemon-reload
 sudo systemctl start certbot.timer
 sudo systemctl start shrtnr.service
 sudo systemctl start syncs3.timer
+sudo systemctl start refiller.timer

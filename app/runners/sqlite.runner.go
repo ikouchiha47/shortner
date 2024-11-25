@@ -42,9 +42,10 @@ var getShardStart = func(startKey byte) uint64 {
 }
 
 type result struct {
-	err      error
-	keyRange string
-	prefixes []byte
+	err        error
+	keyRange   string
+	prefixes   []byte
+	shardStats *models.ShardStatus
 }
 
 func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize uint64) (errr error) {
@@ -159,14 +160,16 @@ func SeedSqliteDB(ctx context.Context, shortKeyLen int, batchSize int, seedSize 
 				ShardID:   shardID,
 				ShardChar: string(prefix),
 				Status:    models.StatusProcessed,
-				Start:     int64(start),
-				End:       int64(start + seedSize),
+				Start:     uint64(start),
+				End:       uint64(start + seedSize),
 			})
 			if err != nil {
 				log.Error().Err(err).Str("shard", shardID).Str("shardChar", string(prefix)).Msg("failed to sync to coordinator db")
 			}
 		}
 	}
+
+	close(resultsChan)
 
 	return errr
 }
