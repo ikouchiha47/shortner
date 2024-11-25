@@ -1,6 +1,7 @@
 *.db
 *logs
 *tmp
+bin/*
 !bin/.keep
 *shm
 *wal

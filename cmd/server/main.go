@@ -8,14 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-batteries/shortner/app/config"
 	"github.com/go-batteries/shortner/app/db"
 	"github.com/go-batteries/shortner/app/models"
 	"github.com/go-batteries/shortner/app/seed"
-	"github.com/go-batteries/shortner/app/watchers"
 	"github.com/go-batteries/shortner/cmd/server/controller"
 	"github.com/go-batteries/slicendice"
 	"github.com/labstack/echo/v4"
@@ -193,29 +191,6 @@ func (app *EchoServer) StartHTTPServer(ctx context.Context, cfg *config.AppConfi
 func main() {
 	srvr := &EchoServer{}
 	ctx := context.Background()
-
-	seeder := &seed.Seeder{}
-	syncer := watchers.NewDBSyncer(seeder.Shards(5))
-
-	var once sync.Once
-
-	once.Do(func() {
-		tick := time.NewTicker(24 * time.Hour)
-
-		go func() {
-			log.Info().Msg("syncing sqlite db every day to s3")
-
-			for {
-				select {
-				case <-tick.C:
-					cx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
-					defer cancel()
-
-					syncer.Run(cx)
-				}
-			}
-		}()
-	})
 
 	memcachedAddrsStr := os.Getenv("MEMCACHED_URLS")
 	addresses := []string{}

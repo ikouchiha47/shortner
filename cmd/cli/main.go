@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-batteries/shortner/app/config"
 	"github.com/go-batteries/shortner/app/db"
 	"github.com/go-batteries/shortner/app/models"
 	"github.com/go-batteries/shortner/app/runners"
 	"github.com/go-batteries/shortner/app/seed"
+	"github.com/go-batteries/shortner/app/watchers"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -154,6 +156,36 @@ func (c *ProbeCmd) Run(ctx context.Context, args []string) {
 	}
 }
 
+type BackupCmd struct {
+	fs      *flag.FlagSet
+	cmdName string
+}
+
+// BackupCmd to backup sqlite database
+// Depends on Keys in env
+func NewBackupCmd() *BackupCmd {
+	return &BackupCmd{
+		fs:      flag.NewFlagSet("backup", flag.ExitOnError),
+		cmdName: "backup",
+	}
+}
+
+func (c *BackupCmd) SetArgs() {}
+
+func (c *BackupCmd) Run(ctx context.Context, args []string) {
+	if err := c.fs.Parse(args); err != nil {
+		log.Fatal().Err(err).Msg("failed to parse arguments")
+	}
+
+	seeder := &seed.Seeder{}
+	syncer := watchers.NewDBSyncer(seeder.Shards(5))
+	cx, cancel := context.WithTimeout(ctx, 2*time.Hour)
+	defer cancel()
+
+	syncer.Run(cx)
+
+}
+
 func main() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
@@ -171,11 +203,16 @@ func main() {
 	pcmd := NewProbCmd()
 	pcmd.SetArgs()
 
+	bcmd := NewBackupCmd()
+	bcmd.SetArgs()
+
 	switch os.Args[1] {
 	case scmd.cmdName:
 		scmd.Run(ctx, os.Args[2:])
 	case pcmd.cmdName:
 		pcmd.Run(ctx, os.Args[2:])
+	case bcmd.cmdName:
+		bcmd.Run(ctx, os.Args[2:])
 	default:
 		log.Fatal().Msgf("invalid command %s", os.Args[1])
 	}

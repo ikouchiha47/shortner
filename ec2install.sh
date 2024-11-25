@@ -40,8 +40,13 @@ sudo certbot --nginx -d shrtn.cloud
 sudo cp /app/shortner/shortner.nginx.conf /etc/nginx/nginx.conf
 sudo certbot --nginx -d shrtn.cloud
 
-sudo cp /app/shortner/certbot.timer /etc/systemd/system/
-sudo cp /app/shortner/certbot.service /etc/systemd/system/
+sudo cp /app/shortner/systemd/certbot.timer /etc/systemd/system/
+sudo cp /app/shortner/systemd/certbot.service /etc/systemd/system/
+sudo cp /app/shortner/systemd/shrtnr.service /etc/systemd/system/
+sudo cp /app/shortner/systemd/syncs3.service /etc/systemd/system/
+sudo cp /app/shortner/systemd/syncs3.timer /etc/systemd/system/
 
 sudo systemctl daemon-reload
 sudo systemctl start certbot.timer
+sudo systemctl start shrtnr.service
+sudo systemctl start syncs3.timer
