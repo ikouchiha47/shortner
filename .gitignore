@@ -4,6 +4,8 @@
 !bin/.keep
 *shm
 *wal
+*.env
+!*.env.dev
 
 outdb/
 out/*
