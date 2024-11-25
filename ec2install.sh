@@ -1,18 +1,30 @@
 #!/bin/bash
 
-sudo yum update -y
-sudo amazon-linux-extras install docker
+# sudo mkdir -p /app
+# sudo chown -R ec2-user:ec2-user /app
 
-sudo yum install -y git memcached
-sudo usermod -a -G docker ec2-user
+sudo amazon-linux-extras enable epel
+sudo yum clean metadata; sudo yum install epel-release; sudo yum update -y
 
-sudo systemctl start docker
+sudo yum install -y git memcached go nginx certbot certbot-nginx
+
+pip3 install -U supervisor 
+
+mkdir -p /tmp/{log,run}
 
 sudo systemctl start memcached
 
-sudo systemctl enable memcached
+cd app && \
+	git clone https://github.com/ikouchiha47/shortner.git && \
+	cd shortner && \
+	go env -w GOPATH=/app/go; go env -w GOMODCACHE=/app/go/pkg/mod && \
+	make build.all && \
+	sudo cp nginx.conf /etc/nginx/modules/shortner.conf && \
+	sudo cp supervisor.conf /etc/supervisord.conf 
 
-sudo yum install -y nginx certbot python3-certbot-nginx
 
-sudo cp nginx.conf /etc/nginx
-sudo certbot --nginx -d shrtn.cloud
+sudo supervisord -c /etc/supervisord.conf
+
+# sudo certbot --nginx -d shrtn.cloud
+# sudo systemctl status certbot.timer
+

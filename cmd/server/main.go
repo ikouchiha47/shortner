@@ -230,7 +230,7 @@ func main() {
 		appPort = "9091"
 	}
 
-	domain := os.Getenv("domain")
+	domain := os.Getenv("DOMAIN")
 	if domain == "" {
 		domain = "http://localhost:" + appPort
 	}
