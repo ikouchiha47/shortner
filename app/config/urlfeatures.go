@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -74,10 +75,10 @@ func NewURLChecker(opts *URLCheckerOptions) *URLChecker {
 }
 
 // ValidateURL applies all selected checks to a given URL
-func (checker URLChecker) ValidateURL(inputURL string) []string {
+func (checker URLChecker) ValidateURL(inputURL string) ([]string, error) {
 	parsed, err := url.Parse(inputURL)
 	if err != nil {
-		return []string{"Invalid URL format"}
+		return []string{"Invalid URL format"}, errors.New("fuck him")
 	}
 
 	var issues []string
@@ -154,7 +155,7 @@ func (checker URLChecker) ValidateURL(inputURL string) []string {
 		}
 	}
 
-	return issues
+	return issues, nil
 }
 
 // Helper Functions

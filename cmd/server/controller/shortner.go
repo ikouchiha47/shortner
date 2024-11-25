@@ -72,7 +72,17 @@ func (ctrl *URLShortner) Post(c echo.Context) error {
 	}
 
 	checker := config.NewURLChecker(config.DefaultOptions())
-	issues := checker.ValidateURL(body.URL)
+	issues, err := checker.ValidateURL(body.URL)
+	if err != nil {
+		log.Error().Err(err).Msg("invalid url")
+
+		if expectsJSONResp {
+			return c.JSON(http.StatusBadRequest, `{"success": false, "error": "url seems suspicious"}`)
+		}
+
+		return c.HTML(http.StatusBadRequest, `<html><body>URL is too malicious</body></html>`)
+
+	}
 
 	log.Info().Msgf("issues %v", issues)
 
