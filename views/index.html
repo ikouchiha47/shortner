@@ -109,13 +109,15 @@
   </div>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const titleText = "Welcome to My Scrolling Title Example - ";
+      const titleText = document.title;
       let index = 0;
 
       function scrollTitle() {
         document.title = titleText.substring(index) + titleText.substring(0, index);
         index = (index + 1) % titleText.length;
-        setTimeout(scrollTitle, 200);
+        
+        // requestAnimationFrame(scrollTitle)
+        setTimeout(scrollTitle, 160);
       }
 
       scrollTitle();
