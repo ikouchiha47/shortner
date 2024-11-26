@@ -3,6 +3,7 @@ package runners
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-batteries/shortner/app/db"
 	"github.com/go-batteries/shortner/app/models"
@@ -162,13 +163,15 @@ func GenerateKeyRangeFrom(
 		generator := seed.NewBase58Generator(last, seedSize, string(shardKey))
 		resultChan := generator.NextBatch(ctx, totalCount, uint64(batchSize))
 
+		now := time.Now().UTC()
+
 		for i := 0; i < int(seedSize/uint64(batchSize)); i++ {
 			log.Debug().Msg("sending back the channel")
 			resultChan <- sinchan
 
 			log.Debug().Msg("waiting for data")
 			urls := slicendice.Map(<-sinchan, func(shorKey string, _ int) *models.URL {
-				return &models.URL{ShortKey: shorKey}
+				return &models.URL{ShortKey: shorKey, CreatedAt: now}
 			})
 
 			log.Debug().Msgf("creating urls for %s", string(shardKey))
